@@ -43,4 +43,4 @@ Key constraints:
 
 ## Releases
 
-release-please (`release-type: simple`) on pushes to `main`, so use Conventional Commit messages. After a release, `.github/scripts/move-major-tag.sh` force-moves the major tag (e.g. `v1`) to the new release.
+release-please (`release-type: simple`) runs via `workflow_run` after the Test workflow succeeds on a push to `main` (not on the push itself), so use Conventional Commit messages. After a release, `.github/scripts/move-major-tag.sh` force-moves the major tag (e.g. `v1`) to the new release.

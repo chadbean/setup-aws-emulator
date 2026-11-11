@@ -1,7 +1,11 @@
 name: Release Please
 
+# Run only after Test passes on a push to main, so a release is never cut from
+# a commit whose tests failed or are still running.
 on:
-  push:
+  workflow_run: # zizmor: ignore[dangerous-triggers] gated to push runs on this repo's main; no code from the triggering run is checked out
+    workflows: [Test]
+    types: [completed]
     branches: [main]
 
 permissions: {}
@@ -15,6 +19,11 @@ concurrency:
 
 jobs:
   release-please:
+    # `branches` matches the head branch name only, which a fork PR can also
+    # call main, so also require a successful push run.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
     # Everything below uses the GitHub App token, not GITHUB_TOKEN, so release
     # PRs and tags trigger other workflows (CI runs on release PRs).
     permissions: {}
