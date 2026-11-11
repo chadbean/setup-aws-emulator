@@ -10,9 +10,10 @@ A **composite** GitHub Action (`action.yml`) that installs [aws-emulator](https:
 
 ```sh
 shellcheck -x scripts/*.sh .github/scripts/*.sh   # lint (CI also runs actionlint on workflows)
+actionlint                                         # the kjanat/actionlint fork; upstream rhysd/actionlint rejects `uses: $/`
 ```
 
-There is no local test suite. Tests are the jobs in `.github/workflows/test.yml`, which run the action via `uses: ./` across runners, containers, option combinations and failure cases. Scripts can be run outside Actions (Linux only) by setting the env vars they read, e.g.:
+There is no local test suite. Tests are the jobs in `.github/workflows/test.yml`, which run the action via `uses: $/` (self-repository syntax) across runners, containers, option combinations and failure cases. Scripts can be run outside Actions (Linux only) by setting the env vars they read, e.g.:
 
 ```sh
 GITHUB_OUTPUT=/dev/stdout GITHUB_ENV=/dev/stdout GITHUB_PATH=/dev/stdout \
