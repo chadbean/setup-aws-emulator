@@ -1,0 +1,174 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Upstream publishes often; catch breakage between our own changes.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: shellcheck
+        run: shellcheck -x scripts/*.sh .github/scripts/*.sh
+      - name: actionlint
+        uses: raven-actions/actionlint@v2
+
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      pinned: ${{ steps.pick.outputs.pinned }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: pick
+        run: .github/scripts/pick-pinned-version.sh
+
+  runners:
+    name: ${{ matrix.os }} / ${{ matrix.version }}
+    needs: versions
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04, ubuntu-24.04-arm]
+        version: [latest, pinned]
+    env:
+      VERSION: ${{ matrix.version == 'pinned' && needs.versions.outputs.pinned || 'latest' }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: emulator
+        uses: ./
+        with:
+          version: ${{ env.VERSION }}
+      - name: Check install
+        run: .github/scripts/check-install.sh "$VERSION" "$REPORTED"
+        env:
+          REPORTED: ${{ steps.emulator.outputs.version }}
+      - name: Smoke test
+        run: .github/scripts/smoke-test.sh
+        env:
+          REQUIRE_AWS_CLI: "true"
+      - name: Port already in use is refused
+        run: .github/scripts/run-expect.sh --fail "already serving on port" scripts/start.sh
+        env:
+          EMULATOR_PATH: ${{ steps.emulator.outputs.path }}
+      - name: Second install hits the tool cache
+        run: .github/scripts/run-expect.sh --pass "in the tool cache" scripts/install.sh
+        env:
+          INPUT_VERSION: ${{ steps.emulator.outputs.version }}
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: emulator-log-${{ matrix.os }}-${{ matrix.version }}
+          path: ${{ steps.emulator.outputs.log-file }}
+          if-no-files-found: ignore
+
+  options:
+    name: options / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: start-false
+            start: "false"
+            verify-signature: "true"
+          - name: no-signature-check
+            start: "true"
+            verify-signature: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - id: emulator
+        uses: ./
+        with:
+          start: ${{ matrix.start }}
+          verify-signature: ${{ matrix.verify-signature }}
+      - name: Check install
+        run: .github/scripts/check-install.sh latest "$REPORTED"
+        env:
+          REPORTED: ${{ steps.emulator.outputs.version }}
+      - name: Smoke test
+        if: matrix.start == 'true'
+        run: .github/scripts/smoke-test.sh
+        env:
+          REQUIRE_AWS_CLI: "true"
+      - name: Emulator was not started
+        if: matrix.start == 'false'
+        run: test -z "$ENDPOINT" && test -z "${AWS_ENDPOINT_URL:-}"
+        env:
+          ENDPOINT: ${{ steps.emulator.outputs.endpoint-url }}
+
+  containers:
+    name: container / ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["debian:stable", "fedora:latest"]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install prerequisites
+        run: .github/scripts/install-prereqs.sh
+      - id: emulator
+        uses: ./
+      - name: Check install
+        run: .github/scripts/check-install.sh latest "$REPORTED"
+        env:
+          REPORTED: ${{ steps.emulator.outputs.version }}
+      - name: Smoke test
+        run: .github/scripts/smoke-test.sh
+
+  bad-input:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Invalid start input is rejected
+        run: .github/scripts/run-expect.sh --fail "Input 'start' must be" scripts/install.sh
+        env:
+          INPUT_START: "yes"
+      - name: Unpublished version is reported
+        run: .github/scripts/run-expect.sh --fail "is not published" scripts/install.sh
+        env:
+          INPUT_VERSION: "0.0.1"
+
+  missing-tools:
+    runs-on: ubuntu-latest
+    container: debian:stable-slim
+    steps:
+      - uses: actions/checkout@v5
+      - id: emulator
+        uses: ./
+        continue-on-error: true
+      - name: Action failed
+        run: test "$OUTCOME" = failure
+        env:
+          OUTCOME: ${{ steps.emulator.outcome }}
+      - name: Failure names the missing tools
+        run: '.github/scripts/run-expect.sh --fail "Missing required tools: curl" scripts/install.sh'
+
+  unsupported-os:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: emulator
+        uses: ./
+        continue-on-error: true
+      - name: Action failed
+        run: test "$OUTCOME" = failure
+        env:
+          OUTCOME: ${{ steps.emulator.outcome }}
+      - name: Failure explains Linux only
+        run: .github/scripts/run-expect.sh --fail "runs natively only on Linux" scripts/install.sh
