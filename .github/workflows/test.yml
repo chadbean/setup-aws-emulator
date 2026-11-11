@@ -85,9 +85,15 @@ jobs:
           - name: start-false
             start: "false"
             verify-signature: "true"
+            region: us-east-1
           - name: no-signature-check
             start: "true"
             verify-signature: "false"
+            region: us-east-1
+          - name: region
+            start: "true"
+            verify-signature: "true"
+            region: us-west-2
     steps:
       - uses: actions/checkout@v5
       - id: emulator
@@ -95,6 +101,7 @@ jobs:
         with:
           start: ${{ matrix.start }}
           verify-signature: ${{ matrix.verify-signature }}
+          region: ${{ matrix.region }}
       - name: Check install
         run: .github/scripts/check-install.sh latest "$REPORTED"
         env:
@@ -104,6 +111,11 @@ jobs:
         run: .github/scripts/smoke-test.sh
         env:
           REQUIRE_AWS_CLI: "true"
+      - name: Region was exported
+        if: matrix.start == 'true'
+        run: test "$AWS_REGION" = "$REGION" && test "$AWS_DEFAULT_REGION" = "$REGION"
+        env:
+          REGION: ${{ matrix.region }}
       - name: Emulator was not started
         if: matrix.start == 'false'
         run: test -z "$ENDPOINT" && test -z "${AWS_ENDPOINT_URL:-}"

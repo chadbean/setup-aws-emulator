@@ -18,6 +18,9 @@ inputs:
   auth:
     description: SigV4 request authentication, "on" or "off".
     default: "on"
+  region:
+    description: AWS Region exported as AWS_REGION and AWS_DEFAULT_REGION. The emulator accepts any Region but does not separate resources by Region.
+    default: us-east-1
   idle-timeout:
     description: Seconds of inactivity after which the emulator shuts itself down. Empty means never.
     default: ""
@@ -80,6 +83,7 @@ runs:
         EMULATOR_PATH: ${{ steps.install.outputs.path }}
         INPUT_PORT: ${{ inputs.port }}
         INPUT_AUTH: ${{ inputs.auth }}
+        INPUT_REGION: ${{ inputs.region }}
         INPUT_IDLE_TIMEOUT: ${{ inputs.idle-timeout }}
         INPUT_WAIT_TIMEOUT: ${{ inputs.wait-timeout }}
         INPUT_TELEMETRY: ${{ inputs.telemetry }}

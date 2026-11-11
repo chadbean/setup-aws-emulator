@@ -2,7 +2,7 @@
 # Starts aws-emulator in the background, waits until it is ready, and exports
 # the client environment for later steps.
 #
-# Inputs (env): EMULATOR_PATH, INPUT_PORT, INPUT_AUTH, INPUT_IDLE_TIMEOUT,
+# Inputs (env): EMULATOR_PATH, INPUT_PORT, INPUT_AUTH, INPUT_REGION, INPUT_IDLE_TIMEOUT,
 #   INPUT_WAIT_TIMEOUT, INPUT_TELEMETRY, INPUT_EXPORT_ENV
 set -euo pipefail
 
@@ -14,6 +14,7 @@ require_commands curl
 bin="${EMULATOR_PATH:?EMULATOR_PATH is required}/bin/aws-emulator"
 port="${INPUT_PORT:-9297}"
 auth="$(echo "${INPUT_AUTH:-on}" | tr '[:upper:]' '[:lower:]')"
+region="$(echo "${INPUT_REGION:-us-east-1}" | tr -d '[:space:]')"
 idle_timeout="${INPUT_IDLE_TIMEOUT:-}"
 wait_timeout="${INPUT_WAIT_TIMEOUT:-60}"
 telemetry="$(bool_input telemetry "${INPUT_TELEMETRY:-false}")"
@@ -25,6 +26,8 @@ fi
 port=$((10#$port)) # drop leading zeros so paths and URLs match the real port
 [[ "$auth" == on || "$auth" == off ]] ||
   fail "Input 'auth' must be 'on' or 'off', got '${INPUT_AUTH}'."
+[[ "$region" =~ ^[a-z]{2}(-[a-z]+)+-[0-9]+$ ]] ||
+  fail "Input 'region' must be an AWS Region like us-east-1, got '$region'."
 [[ -z "$idle_timeout" || "$idle_timeout" =~ ^[0-9]+$ ]] ||
   fail "Input 'idle-timeout' must be a number of seconds, got '$idle_timeout'."
 [[ "$wait_timeout" =~ ^[0-9]+$ ]] ||
@@ -89,8 +92,8 @@ if [[ "$export_env" == true ]]; then
   set_env AWS_SHARED_CREDENTIALS_FILE "$state_dir/emulator_credentials"
   set_env AWS_CONFIG_FILE "$state_dir/config"
   set_env AWS_CA_BUNDLE "$ca_file"
-  set_env AWS_REGION us-east-1
-  set_env AWS_DEFAULT_REGION us-east-1
+  set_env AWS_REGION "$region"
+  set_env AWS_DEFAULT_REGION "$region"
   set_env AWS_EC2_METADATA_DISABLED true
   set_env AWS_DISABLE_HOST_PREFIX_INJECTION true
   set_env NODE_EXTRA_CA_CERTS "$ca_file"

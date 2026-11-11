@@ -25,6 +25,7 @@ jobs:
 | `start` | `true` | Start the emulator in the background and wait until it is ready. `false` only installs it. |
 | `port` | `9297` | Port to listen on. The emulator always binds to `127.0.0.1`. The action fails if something already answers on this port. |
 | `auth` | `on` | SigV4 request authentication, `on` or `off`. |
+| `region` | `us-east-1` | Region exported as `AWS_REGION` and `AWS_DEFAULT_REGION`. See [Regions](#regions). |
 | `idle-timeout` | | Seconds of inactivity before the emulator shuts down. Empty means never. |
 | `wait-timeout` | `60` | Seconds to wait for readiness before failing. |
 | `telemetry` | `false` | Allow the emulator to send telemetry. See [Telemetry](#telemetry). |
@@ -53,7 +54,7 @@ AWS_ENDPOINT_URL                   https://127.0.0.1:<port>
 AWS_SHARED_CREDENTIALS_FILE        ~/.aws/emulator/<port>/emulator_credentials
 AWS_CONFIG_FILE                    ~/.aws/emulator/<port>/config
 AWS_CA_BUNDLE                      ~/.aws/emulator/<port>/ca.pem
-AWS_REGION / AWS_DEFAULT_REGION    us-east-1
+AWS_REGION / AWS_DEFAULT_REGION    <region> (default us-east-1)
 AWS_EC2_METADATA_DISABLED          true
 AWS_DISABLE_HOST_PREFIX_INJECTION  true
 NODE_EXTRA_CA_CERTS                ~/.aws/emulator/<port>/ca.pem
@@ -82,9 +83,13 @@ The emulator runs until the job ends. To keep its log:
           path: ${{ steps.emulator.outputs.log-file }}
 ```
 
+## Regions
+
+The emulator accepts any Region in a request, but it does not keep resources separate by Region. Use one Region for all requests to an emulator. The `region` input sets that Region for later steps; the default `us-east-1` matches the [AWS client setup docs](https://docs.aws.amazon.com/emulator/latest/userguide/point-sdk-to-emulator.html#point-sdk-env). AWS checks the emulator's behaviour against `us-west-2` (and `us-east-1` for global services), so set `region: us-west-2` if you want to test against the Region the emulator is [verified in](https://docs.aws.amazon.com/emulator/latest/userguide/what-is-service.html#what-is-limits).
+
 ## Several emulators
 
-The emulator has one region (`us-east-1`), so testing several regions means one emulator per region on different ports. Calling the action twice works, but the exported environment points at whichever emulator started **last**. Use the step outputs to wire up the others.
+To test several Regions, run one emulator per Region, each on its own port. Calling the action twice works, but the exported environment points at whichever emulator started **last**. Use the step outputs to wire up the others.
 
 ## Caching
 
