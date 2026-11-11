@@ -76,6 +76,7 @@ jobs:
         run: .github/scripts/smoke-test.sh
         env:
           REQUIRE_AWS_CLI: "true"
+          REQUIRE_NODE: "true"
       - name: Port already in use is refused
         run: .github/scripts/run-expect.sh --fail "already serving on port" scripts/start.sh
         env:
@@ -131,6 +132,7 @@ jobs:
         run: .github/scripts/smoke-test.sh
         env:
           REQUIRE_AWS_CLI: "true"
+          REQUIRE_NODE: "true"
       - name: Region was exported
         if: matrix.start == 'true'
         run: test "$AWS_REGION" = "$REGION" && test "$AWS_DEFAULT_REGION" = "$REGION"
