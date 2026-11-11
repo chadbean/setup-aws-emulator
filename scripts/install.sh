@@ -64,16 +64,20 @@ else
   if [[ "$verify" == true ]]; then
     curl -fsSL --retry 3 -o "$work/$package.sig" "$DOWNLOAD_BASE/$package.sig"
     curl -fsSL --retry 3 -o "$work/key.asc" "$GPG_KEY_URL"
-    # Keep GNUPGHOME short: gpg-agent's socket lives inside it and Unix socket
-    # paths are limited to ~104 bytes, which deep RUNNER_TEMP paths exceed.
+    # Keep GNUPGHOME short: if gpg-agent starts, its socket lives inside it and
+    # Unix socket paths are limited to ~104 bytes, which deep RUNNER_TEMP paths exceed.
     GNUPGHOME="$(mktemp -d)"
     export GNUPGHOME
     # Stop any gpg-agent/keyboxd started in GNUPGHOME before deleting it.
     trap 'gpgconf --kill all >/dev/null 2>&1 || true; rm -rf "$work" "$GNUPGHOME"' EXIT
-    gpg --batch --quiet --import "$work/key.asc" ||
-      fail "Could not import the AWS signing key from $GPG_KEY_URL."
+    # Verify against the dearmored key file instead of importing it: --import
+    # needs gpg-agent, which slim images (e.g. Debian with
+    # --no-install-recommends) don't have.
+    gpg --batch --yes --dearmor -o "$work/key.gpg" "$work/key.asc" ||
+      fail "Could not read the AWS signing key from $GPG_KEY_URL."
     # Accept the signature only if it was made by the pinned primary key.
-    status="$(gpg --batch --status-fd 1 --verify "$work/$package.sig" "$work/$package" 2>/dev/null || true)"
+    status="$(gpg --batch --no-default-keyring --keyring "$work/key.gpg" --status-fd 1 \
+      --verify "$work/$package.sig" "$work/$package" 2>/dev/null || true)"
     if ! grep -E "^\[GNUPG:\] VALIDSIG .* $GPG_FINGERPRINT\$" <<<"$status" >/dev/null; then
       fail "Signature verification failed for $package. Expected a valid signature from key $GPG_FINGERPRINT."
     fi
