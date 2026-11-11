@@ -6,6 +6,13 @@ on:
 
 permissions: {}
 
+# Queue instead of cancelling: a run cancelled between creating a release and
+# moving the major tag would leave v1 behind. The newest queued run picks up
+# every commit since the last release, so dropping intermediate ones is safe.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   release-please:
     # Everything below uses the GitHub App token, not GITHUB_TOKEN, so release
