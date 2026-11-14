@@ -25,14 +25,29 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: shellcheck
         run: shellcheck -x scripts/*.sh .github/scripts/*.sh
       - name: actionlint
         # Maintained fork; upstream rhysd/actionlint has had no release since v1.7.12.
-        uses: kjanat/actionlint@1a9278318c43b72cdf644214128fb0786d210147 # v1.17
+        uses: kjanat/actionlint@v1.17
+
+  # Fails when .github/workflows/actions.lock is out of sync with the workflows
+  # or a locked pin no longer verifies upstream (e.g. a tag was moved).
+  lockfile:
+    permissions:
+      contents: read
+    runs-on: ubuntu-slim
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - run: gh extension install github/gh-actions-lock --pin v0.4.1
+      - run: gh actions-lock --verify
 
   versions:
     permissions:
@@ -41,7 +56,7 @@ jobs:
     outputs:
       pinned: ${{ steps.pick.outputs.pinned }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - id: pick
@@ -61,7 +76,7 @@ jobs:
     env:
       VERSION: ${{ matrix.version == 'pinned' && needs.versions.outputs.pinned || 'latest' }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - id: emulator
@@ -85,7 +100,7 @@ jobs:
         run: .github/scripts/run-expect.sh --pass "in the tool cache" scripts/install.sh
         env:
           INPUT_VERSION: ${{ steps.emulator.outputs.version }}
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: emulator-log-${{ matrix.os }}-${{ matrix.version }}
@@ -114,7 +129,7 @@ jobs:
             verify-signature: "true"
             region: us-west-2
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - id: emulator
@@ -156,7 +171,7 @@ jobs:
       matrix:
         image: ["debian:stable", "fedora:latest"]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Install prerequisites
@@ -175,7 +190,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Invalid start input is rejected
@@ -193,7 +208,7 @@ jobs:
     runs-on: ubuntu-latest
     container: debian:stable-slim
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - id: emulator
@@ -211,7 +226,7 @@ jobs:
       contents: read
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - id: emulator

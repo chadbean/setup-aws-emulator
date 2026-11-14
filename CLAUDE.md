@@ -39,6 +39,7 @@ Key constraints:
 ## CI conventions
 
 - Multi-line `run:` logic in workflows goes into shellchecked `.github/scripts/*.sh`, not inline bash.
+- Actions are referenced by full version tag (`actions/checkout@v7.0.1`) and pinned to commit SHAs in `.github/workflows/actions.lock`, which is machine-generated: after adding or changing any `uses:`, run `gh actions-lock` (extension `github/gh-actions-lock`) and commit the lockfile with the workflow. The `lockfile` job in `test.yml` runs `gh actions-lock --verify`. `gh actions-lock` may drop trailing comments on `uses:` lines (e.g. `# zizmor: ignore[...]`); check the diff.
 - `test.yml` also runs weekly on a schedule to catch upstream breakage, and tests a "pinned" version (second-newest, from `pick-pinned-version.sh`) alongside `latest`.
 
 ## Releases
